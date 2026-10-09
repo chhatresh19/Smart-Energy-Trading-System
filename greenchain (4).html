@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GreenChain — P2P Energy Trading</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#03080a;--bg2:#061012;--bg3:#081518;
+  --surface:#0b1e22;--surface2:#0f2830;--surface3:#133038;
+  --cyan:#00e5ff;--cyan2:#00b4cc;
+  --green:#00ff88;--green-dim:#00cc6a;
+  --amber:#ffb700;--red:#ff4d6d;
+  --text:#e8f8fb;--text2:#7ecfda;--text3:#4a9aa6;--muted:#2a5560;
+  --border:rgba(0,229,255,0.12);--border2:rgba(0,229,255,0.25);--border3:rgba(0,229,255,0.4);
+  --r:12px;--r2:18px;--r3:24px;
+}
+*{box-sizing:border-box}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+.orb{position:fixed;border-radius:50%;filter:blur(100px);pointer-events:none;z-index:0}
+.orb1{width:600px;height:600px;background:rgba(0,229,255,0.05);top:-200px;right:-150px}
+.orb2{width:500px;height:500px;background:rgba(0,255,136,0.04);bottom:-150px;left:-100px}
+.page{display:none;min-height:100vh;flex-direction:column;position:relative;z-index:1}
+.page.active{display:flex}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.animate{animation:fadeUp 0.45s ease forwards}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes newPulse{0%{box-shadow:0 0 30px rgba(0,255,136,.5)}100%{box-shadow:0 0 16px rgba(0,255,136,.15)}}
+
+nav{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;border-bottom:1px solid var(--border);background:rgba(3,8,10,0.9);backdrop-filter:blur(16px);position:sticky;top:0;z-index:200;gap:1rem;flex-wrap:wrap}
+.logo{font-size:1.35rem;font-weight:800;color:var(--cyan);letter-spacing:-0.5px;display:flex;align-items:center;gap:8px}
+.logo-ring{width:28px;height:28px;border-radius:50%;border:2px solid var(--cyan);display:flex;align-items:center;justify-content:center}
+.logo-ring::after{content:'';width:8px;height:8px;background:var(--cyan);border-radius:50%;box-shadow:0 0 10px var(--cyan);animation:pulse 2s infinite}
+.nav-info{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chip{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:4px 14px;color:var(--text2);font-size:12px;font-family:'DM Mono',monospace}
+.chip .hl{color:var(--cyan);font-weight:600}
+.btn-ghost{background:transparent;border:1px solid var(--border2);border-radius:var(--r);padding:6px 14px;color:var(--text2);cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif;transition:.2s}
+.btn-ghost:hover{border-color:var(--cyan);color:var(--cyan)}
+.center-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:2.5rem 1rem}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r3);padding:2.5rem;width:100%;max-width:460px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
+.tag{display:inline-flex;align-items:center;gap:6px;background:rgba(0,229,255,0.06);border:1px solid var(--border2);border-radius:20px;padding:4px 14px;font-size:11px;color:var(--cyan);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:1.2rem}
+.card-title{font-size:1.7rem;font-weight:800;line-height:1.2;margin-bottom:.4rem}
+.card-sub{font-size:14px;color:var(--text3);margin-bottom:2rem;line-height:1.6}
+.form-group{margin-bottom:1.2rem}
+label{display:block;font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem}
+input,select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;color:var(--text);font-size:14px;font-family:'Outfit',sans-serif;outline:none;transition:.2s}
+input:focus,select:focus{border-color:var(--cyan2);box-shadow:0 0 0 3px rgba(0,229,255,0.08)}
+input::placeholder{color:var(--muted)}
+select option{background:var(--surface)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{width:100%;padding:14px;border-radius:var(--r);border:none;font-size:15px;font-weight:700;font-family:'Outfit',sans-serif;cursor:pointer;transition:.2s;letter-spacing:.3px}
+.btn-primary{background:var(--cyan);color:#000}
+.btn-primary:hover{background:var(--cyan2);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,229,255,0.25)}
+.btn-secondary{background:transparent;color:var(--cyan);border:1.5px solid var(--cyan2)}
+.btn-secondary:hover{background:rgba(0,229,255,0.06)}
+.btn-green{background:var(--green);color:#000}
+.btn-green:hover{background:var(--green-dim);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,255,136,0.25)}
+.btn-sm{width:auto;padding:8px 20px;font-size:13px}
+.divider{text-align:center;color:var(--muted);font-size:12px;margin:1.2rem 0;position:relative}
+.divider::before,.divider::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border)}
+.divider::before{left:0}.divider::after{right:0}
+.link-text{text-align:center;font-size:13px;color:var(--text3);margin-top:1.2rem}
+.link-text a{color:var(--cyan);cursor:pointer;font-weight:600}
+.alert{padding:12px 16px;border-radius:var(--r);font-size:13px;margin-bottom:1rem;display:none}
+.alert.show{display:block}
+.alert-error{background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.3);color:#ff4d6d}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:2rem}
+.role-card{background:var(--surface);border:2px solid var(--border);border-radius:var(--r2);padding:2rem 1.5rem;cursor:pointer;transition:.25s;text-align:center;position:relative}
+.role-card:hover,.role-card.selected{border-color:var(--cyan);background:rgba(0,229,255,0.05)}
+.role-card.selected{border-color:var(--cyan);box-shadow:0 0 24px rgba(0,229,255,0.15)}
+.role-card.sell-card.selected{border-color:var(--amber);box-shadow:0 0 24px rgba(255,183,0,0.15);background:rgba(255,183,0,0.04)}
+.role-icon{font-size:2.8rem;margin-bottom:1rem;display:block}
+.role-card h3{font-size:1.1rem;font-weight:700;margin-bottom:.4rem}
+.role-card p{font-size:12px;color:var(--text3);line-height:1.5}
+.check-badge{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:12px;opacity:0;transition:.2s;color:#000;font-weight:700}
+.role-card.selected .check-badge{opacity:1}
+.role-card.sell-card.selected .check-badge{background:var(--amber)}
+.steps{display:flex;align-items:center;margin-bottom:2rem}
+.step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+.step-num{width:28px;height:28px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--text3);background:var(--bg2)}
+.step.done .step-num{background:var(--cyan);border-color:var(--cyan);color:#000}
+.step.active .step-num{border-color:var(--cyan);color:var(--cyan)}
+.step-label{font-size:10px;color:var(--muted);text-align:center}
+.step.done .step-label,.step.active .step-label{color:var(--text3)}
+.step-line{flex:1;height:2px;background:var(--border);margin-bottom:14px}
+.step-line.done{background:var(--cyan2)}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:2rem}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:1.5rem;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.produced::before{background:linear-gradient(90deg,var(--green),var(--cyan))}
+.stat-card.consumed::before{background:linear-gradient(90deg,var(--amber),#ff7043)}
+.stat-card.sold::before{background:linear-gradient(90deg,var(--cyan),#7c3aed)}
+.stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);margin-bottom:.6rem}
+.stat-value{font-size:2rem;font-weight:800;line-height:1;font-family:'DM Mono',monospace}
+.stat-value.green{color:var(--green)}.stat-value.amber{color:var(--amber)}.stat-value.cyan{color:var(--cyan)}
+.stat-unit{font-size:12px;color:var(--text3);margin-top:.3rem}
+.stat-trend{font-size:11px;margin-top:.5rem}
+.trend-up{color:var(--green)}.trend-dn{color:var(--red)}
+.sell-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:1.5rem;margin-bottom:1.5rem}
+.sell-box h3{font-size:.95rem;font-weight:700;margin-bottom:1.2rem;color:var(--text2)}
+.slider-wrap{margin-bottom:1rem}
+.slider-val{display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem}
+.slider-num{font-size:2rem;font-weight:800;color:var(--cyan);font-family:'DM Mono',monospace}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--surface3);border-radius:4px;outline:none;border:none;padding:0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--cyan);cursor:pointer}
+.price-preview{display:flex;justify-content:space-between;align-items:center;background:rgba(0,229,255,.05);border:1px solid var(--border2);border-radius:var(--r);padding:12px 16px;margin-bottom:1rem}
+.price-val{font-size:1.1rem;font-weight:700;color:var(--green);font-family:'DM Mono',monospace}
+
+/* LIVE LISTING STATUS */
+.live-listing{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.3);border-radius:var(--r2);padding:1rem 1.25rem;margin-bottom:1rem;display:none}
+.live-listing.active{display:block}
+.live-listing-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--green);margin-bottom:.5rem;display:flex;align-items:center;gap:6px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.5s infinite;display:inline-block}
+.live-listing-info{font-size:13px;color:var(--text2);line-height:1.8}
+.btn-cancel{background:transparent;border:1px solid rgba(255,77,109,.4);border-radius:var(--r);padding:6px 14px;color:var(--red);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;margin-top:.6rem}
+.btn-cancel:hover{background:rgba(255,77,109,.1)}
+
+.tx-list{}
+.tx-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.tx-item:last-child{border-bottom:none}
+.tx-left{display:flex;align-items:center;gap:10px}
+.tx-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.tx-icon.sell-ic{background:rgba(0,255,136,.1);color:var(--green)}
+.tx-info p{font-size:13px;font-weight:600}.tx-info span{font-size:11px;color:var(--muted)}
+.tx-amount{font-family:'DM Mono',monospace;font-size:13px;font-weight:600}
+.tx-amount.earn{color:var(--green)}
+
+/* BUY PAGE */
+.search-bar{display:flex;gap:10px;margin-bottom:1.5rem;flex-wrap:wrap}
+.search-bar input{flex:1;min-width:160px}
+.seller-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:2rem}
+.seller-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r2);padding:1.25rem;cursor:pointer;transition:.2s;position:relative}
+.seller-card:hover{border-color:var(--cyan2);background:rgba(0,229,255,.04)}
+.seller-card.online::before{content:'';position:absolute;top:14px;right:14px;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+.seller-card.new-listing{border-color:var(--green);animation:newPulse 2s ease-out forwards}
+.seller-header{display:flex;align-items:center;gap:10px;margin-bottom:.8rem}
+.avatar{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--surface2),var(--surface3));display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid var(--border)}
+.seller-name{font-size:.95rem;font-weight:700}
+.seller-loc{font-size:11px;color:var(--muted)}
+.seller-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.s-stat{background:var(--bg3);border-radius:8px;padding:6px 10px}
+.s-stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px}
+.s-stat-val{font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:var(--cyan)}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;margin-top:.5rem}
+.badge-solar{background:rgba(255,183,0,.12);color:var(--amber);border:1px solid rgba(255,183,0,.25)}
+.badge-wind{background:rgba(0,229,255,.1);color:var(--cyan);border:1px solid var(--border2)}
+.badge-mixed{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.25)}
+.badge-new{background:rgba(0,255,136,.2);color:var(--green);border:1px solid rgba(0,255,136,.5)}
+.badge-soldout{background:rgba(255,77,109,.1);color:var(--red);border:1px solid rgba(255,77,109,.3)}
+
+/* BUYER NOTIF */
+.buyer-notif{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.3);border-radius:var(--r);padding:10px 16px;font-size:13px;color:var(--green);margin-bottom:1.2rem;display:none;align-items:center;gap:8px}
+.buyer-notif.show{display:flex}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(3,8,10,.85);backdrop-filter:blur(8px);z-index:300;display:none;align-items:center;justify-content:center;padding:1rem}
+.modal-overlay.active{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r3);padding:2.5rem;width:100%;max-width:440px;position:relative;animation:fadeUp .35s ease}
+.modal-close{position:absolute;top:16px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:16px}
+.modal-close:hover{color:var(--text);border-color:var(--cyan)}
+.modal-seller-info{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border)}
+.tx-confirm{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:1.2rem;margin:1rem 0}
+.tx-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.tx-row:last-child{border:none;font-weight:700;font-size:14px}
+.tx-row span:last-child{font-family:'DM Mono',monospace;color:var(--cyan)}
+
+/* BC BADGE */
+.bc-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(0,229,255,.06);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:11px;color:var(--cyan);margin-bottom:1rem}
+.bc-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 1.5s infinite}
+
+/* TOAST */
+.toast{position:fixed;bottom:2rem;right:2rem;background:var(--surface2);border:1px solid var(--border3);border-radius:var(--r2);padding:14px 20px;font-size:14px;color:var(--text);z-index:500;transform:translateY(100px);opacity:0;transition:.3s;max-width:320px;line-height:1.5}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-color:rgba(0,255,136,.4);color:var(--green)}
+.toast.error{border-color:rgba(255,77,109,.4);color:var(--red)}
+
+/* ADMIN */
+.admin-body{flex:1;padding:2rem;max-width:1100px;margin:0 auto;width:100%}
+.admin-tabs{display:flex;gap:8px;margin-bottom:2rem;flex-wrap:wrap}
+.a-tab{padding:8px 20px;border-radius:var(--r);border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-size:13px;font-weight:600;font-family:'Outfit',sans-serif;transition:.2s}
+.a-tab.active{background:var(--surface);border-color:var(--cyan);color:var(--cyan)}
+.admin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:2rem}
+.a-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:1.2rem}
+.a-stat-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:.4rem}
+.a-stat-val{font-size:1.6rem;font-weight:800;font-family:'DM Mono',monospace}
+.a-stat-val.c{color:var(--cyan)}.a-stat-val.g{color:var(--green)}.a-stat-val.a{color:var(--amber)}.a-stat-val.r{color:var(--red)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{border-bottom:1px solid var(--border2)}
+th{text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-weight:600}
+td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text2)}
+.status-dot{display:inline-flex;align-items:center;gap:5px;font-size:12px}
+.dot{width:7px;height:7px;border-radius:50%}
+.dot-green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot-amber{background:var(--amber)}.dot-red{background:var(--red)}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;margin-bottom:2rem}
+.table-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap}
+.table-title{font-size:.95rem;font-weight:700;color:var(--text2)}
+.table-search{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:6px 14px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;width:200px}
+.a-section{display:none}.a-section.active{display:block}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--muted);border-radius:4px}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<!-- PAGE: REGISTER -->
+<div class="page active" id="pg-register">
+  <nav>
+    <div class="logo"><div class="logo-ring"></div> GreenChain</div>
+    <div class="nav-info"><div class="chip">Network: <span class="hl">Sepolia Testnet</span></div></div>
+  </nav>
+  <div class="center-wrap">
+    <div class="card animate">
+      <div class="steps">
+        <div class="step active"><div class="step-num">1</div><div class="step-label">Register</div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-num">2</div><div class="step-label">Login</div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-num">3</div><div class="step-label">Role</div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-num">4</div><div class="step-label">Trade</div></div>
+      </div>
+      <div class="tag">⚡ New Account</div>
+      <h2 class="card-title">Join the Green Grid</h2>
+      <p class="card-sub">Create your decentralized energy trading account. Your data is secured on blockchain.</p>
+      <div id="reg-alert" class="alert alert-error"></div>
+      <div class="form-row">
+        <div class="form-group"><label>First Name</label><input type="text" id="reg-fname" placeholder="Arjun"/></div>
+        <div class="form-group"><label>Last Name</label><input type="text" id="reg-lname" placeholder="Kumar"/></div>
+      </div>
+      <div class="form-group"><label>Email</label><input type="email" id="reg-email" placeholder="you@example.com"/></div>
+      <div class="form-group"><label>Phone</label><input type="tel" id="reg-phone" placeholder="+91 98765 43210"/></div>
+      <div class="form-group"><label>Location / Area</label><input type="text" id="reg-location" placeholder="Chennai, Tamil Nadu"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>Password</label><input type="password" id="reg-pass" placeholder="••••••••"/></div>
+        <div class="form-group"><label>Confirm</label><input type="password" id="reg-pass2" placeholder="••••••••"/></div>
+      </div>
+      <button class="btn btn-primary" onclick="doRegister()">Create Account →</button>
+      <div class="link-text">Already have an account? <a onclick="goTo('pg-login')">Sign in</a></div>
+      <div class="divider">or</div>
+      <div class="link-text" style="margin-top:0"><a onclick="goTo('pg-admin-login')">🔐 Admin Login</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: LOGIN -->
+<div class="page" id="pg-login">
+  <nav>
+    <div class="logo"><div class="logo-ring"></div> GreenChain</div>
+    <div class="nav-info"><div class="chip">Network: <span class="hl">Sepolia Testnet</span></div></div>
+  </nav>
+  <div class="center-wrap">
+    <div class="card animate">
+      <div class="steps">
+        <div class="step done"><div class="step-num">✓</div><div class="step-label">Register</div></div>
+        <div class="step-line done"></div>
+        <div class="step active"><div class="step-num">2</div><div class="step-label">Login</div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-num">3</div><div class="step-label">Role</div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-num">4</div><div class="step-label">Trade</div></div>
+      </div>
+      <div class="tag">🔑 Welcome Back</div>
+      <h2 class="card-title">Sign In</h2>
+      <p class="card-sub">Connect to your energy trading wallet and start trading renewable energy.</p>
+      <div id="login-alert" class="alert alert-error"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com"/></div>
+      <div class="form-group"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••"/></div>
+      <button class="btn btn-primary" onclick="doLogin()">Sign In →</button>
+      <div class="link-text">Don't have an account? <a onclick="goTo('pg-register')">Create one</a></div>
+      <div class="divider">or</div>
+      <div class="link-text" style="margin-top:0"><a onclick="goTo('pg-admin-login')">🔐 Admin Login</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: ROLE -->
+<div class="page" id="pg-role">
+  <nav>
+    <div class="logo"><div class="logo-ring"></div> GreenChain</div>
+    <div class="nav-info">
+      <div class="chip">Wallet: <span class="hl" id="wallet-addr">0x3f2...a9c1</span></div>
+      <button class="btn-ghost" onclick="doLogout()">Logout</button>
+    </div>
+  </nav>
+  <div class="center-wrap">
+    <div class="card animate" style="max-width:520px">
+      <div class="steps">
+        <div class="step done"><div class="step-num">✓</div><div class="step-label">Register</div></div>
+        <div class="step-line done"></div>
+        <div class="step done"><div class="step-num">✓</div><div class="step-label">Login</div></div>
+        <div class="step-line done"></div>
+        <div class="step active"><div class="step-num">3</div><div class="step-label">Role</div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-num">4</div><div class="step-label">Trade</div></div>
+      </div>
+      <div class="tag">⚡ Select Role</div>
+      <h2 class="card-title">How do you want to trade?</h2>
+      <p class="card-sub">Choose your role in the GreenChain marketplace. You can switch anytime.</p>
+      <div class="role-grid">
+        <div class="role-card sell-card selected" id="role-sell" onclick="selectRole('sell')">
+          <div class="check-badge">✓</div>
+          <span class="role-icon">☀️</span>
+          <h3>Sell Energy</h3>
+          <p>List your surplus renewable energy and earn tokens directly.</p>
+        </div>
+        <div class="role-card" id="role-buy" onclick="selectRole('buy')">
+          <div class="check-badge">✓</div>
+          <span class="role-icon">⚡</span>
+          <h3>Buy Energy</h3>
+          <p>Purchase green energy from nearby producers at fair prices.</p>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="goToTrade()">Continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: SELL -->
+<div class="page" id="pg-sell">
+  <nav>
+    <div class="logo"><div class="logo-ring"></div> GreenChain</div>
+    <div class="nav-info">
+      <div class="chip">Wallet: <span class="hl" id="sell-wallet">0x3f2...a9c1</span></div>
+      <div class="chip">Balance: <span class="hl" id="balance-display">₹842.50</span></div>
+      <button class="btn-ghost" onclick="goTo('pg-role')">← Switch Role</button>
+      <button class="btn-ghost" onclick="doLogout()">Logout</button>
+    </div>
+  </nav>
+  <div style="flex:1;padding:2rem;max-width:960px;margin:0 auto;width:100%">
+    <div class="animate">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+        <div>
+          <div class="bc-badge"><div class="bc-dot"></div> Smart Contract Active</div>
+          <h2 style="font-size:1.5rem;font-weight:800">Energy Sell Dashboard</h2>
+          <p style="font-size:13px;color:var(--text3);margin-top:.2rem">Manage your renewable energy output and listings</p>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Today's Avg Price</div>
+          <div style="font-size:1.5rem;font-weight:800;color:var(--green);font-family:'DM Mono',monospace">₹8.40<span style="font-size:12px;color:var(--text3)">/kWh</span></div>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div class="stat-card produced">
+          <div class="stat-label">⚡ Energy Produced</div>
+          <div class="stat-value green">142.6</div>
+          <div class="stat-unit">kWh this month</div>
+          <div class="stat-trend trend-up">▲ 12.4% vs last month</div>
+        </div>
+        <div class="stat-card consumed">
+          <div class="stat-label">🏠 Energy Consumed</div>
+          <div class="stat-value amber">68.3</div>
+          <div class="stat-unit">kWh this month</div>
+          <div class="stat-trend trend-dn">▲ 4.1% vs last month</div>
+        </div>
+        <div class="stat-card sold">
+          <div class="stat-label">💸 Energy Sold</div>
+          <div class="stat-value cyan" id="stat-sold-kwh">48.2</div>
+          <div class="stat-unit" id="stat-sold-amt">kWh · ₹404.88 earned</div>
+          <div class="stat-trend trend-up">▲ 22% vs last month</div>
+        </div>
+        <div class="stat-card sold">
+          <div class="stat-label">🔋 Remaining Energy</div>
+          <div class="stat-value green" id="stat-remaining-kwh">0.0</div>
+          <div class="stat-unit">kWh still listed / unsold</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="sell-box">
+          <h3>⚡ List Energy for Sale</h3>
+
+          <!-- LIVE STATUS (shown after listing) -->
+          <div class="live-listing" id="live-listing-status">
+            <div class="live-listing-title"><span class="live-dot"></span> Currently Listed on Marketplace</div>
+            <div class="live-listing-info" id="live-listing-info"></div>
+            <button class="btn-cancel" onclick="cancelListing()">✕ Cancel Listing</button>
+          </div>
+
+          <!-- SELL FORM (hidden after listing) -->
+          <div id="sell-form-area">
+            <div class="slider-wrap">
+              <div class="slider-val">
+                <div>
+                  <div class="slider-num" id="kwh-val">10.0</div>
+                  <div style="font-size:11px;color:var(--muted)">kWh to sell</div>
+                </div>
+                <div style="font-size:12px;color:var(--muted)">Max: <span style="color:var(--green);font-weight:700">26.1 kWh</span></div>
+              </div>
+              <input type="range" min="0.5" max="26.1" step="0.1" value="10" id="kwh-slider" oninput="updateSlider()"/>
+            </div>
+            <div class="price-preview">
+              <div>
+                <div style="font-size:13px;color:var(--text3)">Estimated Earnings</div>
+                <div style="font-size:11px;color:var(--muted)">at your listed price</div>
+              </div>
+              <div class="price-val" id="price-est">₹84.00</div>
+            </div>
+            <div class="form-group" style="margin-bottom:1rem">
+              <label>Energy Source</label>
+              <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;color:var(--text);font-size:14px;display:flex;align-items:center;gap:8px">
+                <span>☀️ Solar Panel</span>
+                <span style="margin-left:auto;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Only source available</span>
+              </div>
+              <input type="hidden" id="energy-source" value="solar"/>
+            </div>
+            <div class="form-group" style="margin-bottom:1rem">
+              <label>Your Price per kWh (₹)</label>
+              <input type="number" id="custom-price" value="8.40" min="5" max="20" step="0.10" oninput="updateSlider()"/>
+            </div>
+            <button class="btn btn-green" onclick="doSell()">⚡ List on Marketplace via Smart Contract</button>
+          </div>
+        </div>
+        <div class="sell-box">
+          <h3>📋 Recent Transactions</h3>
+          <div class="tx-list" id="sell-tx-list">
+            <div class="tx-item">
+              <div class="tx-left"><div class="tx-icon sell-ic">↑</div><div class="tx-info"><p>Sold to Priya M.</p><span>2 hrs ago · 8.5 kWh</span></div></div>
+              <div class="tx-amount earn">+₹71.40</div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-left"><div class="tx-icon sell-ic">↑</div><div class="tx-info"><p>Sold to Ram S.</p><span>Yesterday · 12.0 kWh</span></div></div>
+              <div class="tx-amount earn">+₹100.80</div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-left"><div class="tx-icon sell-ic">↑</div><div class="tx-info"><p>Sold to Meena K.</p><span>2 days ago · 6.2 kWh</span></div></div>
+              <div class="tx-amount earn">+₹52.08</div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-left"><div class="tx-icon sell-ic">↑</div><div class="tx-info"><p>Sold to Ravi T.</p><span>3 days ago · 21.5 kWh</span></div></div>
+              <div class="tx-amount earn">+₹180.60</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: BUY -->
+<div class="page" id="pg-buy">
+  <nav>
+    <div class="logo"><div class="logo-ring"></div> GreenChain</div>
+    <div class="nav-info">
+      <div class="chip">Wallet: <span class="hl" id="buy-wallet">0x3f2...a9c1</span></div>
+      <button class="btn-ghost" onclick="goTo('pg-role')">← Switch Role</button>
+      <button class="btn-ghost" onclick="doLogout()">Logout</button>
+    </div>
+  </nav>
+  <div style="flex:1;padding:2rem;max-width:960px;margin:0 auto;width:100%">
+    <div class="animate">
+      <div style="margin-bottom:1.5rem">
+        <div class="bc-badge"><div class="bc-dot"></div> P2P Marketplace Live</div>
+        <h2 style="font-size:1.5rem;font-weight:800">Buy Renewable Energy</h2>
+        <p style="font-size:13px;color:var(--text3);margin-top:.2rem">Connect directly with verified local energy producers</p>
+      </div>
+      <!-- NEW LISTING BANNER -->
+      <div class="buyer-notif" id="buyer-notif">
+        <span>🆕</span>
+        <span id="buyer-notif-text">A new seller just listed energy!</span>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="seller-search" placeholder="🔍  Search by name or location..." oninput="filterSellers()"/>
+        <select id="seller-filter" style="width:180px" onchange="filterSellers()">
+          <option value="">All Sellers</option>
+          <option value="solar">☀️ Solar Panel</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="filterSellers()">Near Me 📍</button>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:1rem" id="seller-count"></div>
+      <div class="seller-grid" id="seller-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- BUY MODAL -->
+<div class="modal-overlay" id="buy-modal">
+  <div class="modal">
+    <div class="modal-close" onclick="closeModal()">✕</div>
+    <div class="bc-badge"><div class="bc-dot"></div> Verified Seller</div>
+    <div class="modal-seller-info" id="modal-seller-info"></div>
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:1.2rem">Purchase Energy</h3>
+    <div class="form-group">
+      <label>Amount to Buy (kWh)</label>
+      <input type="number" id="buy-kwh" placeholder="e.g. 10" min="0.1" step="0.1" oninput="updateBuyPrice()"/>
+    </div>
+    <div class="tx-confirm">
+      <div class="tx-row"><span style="color:var(--text3)">Price per kWh</span><span id="modal-price">₹8.20</span></div>
+      <div class="tx-row"><span style="color:var(--text3)">Platform Fee (2%)</span><span id="modal-fee">₹0.00</span></div>
+      <div class="tx-row"><span>Total</span><span id="modal-total">₹0.00</span></div>
+    </div>
+    <button class="btn btn-primary" onclick="doBuy()">⚡ Confirm Purchase via Smart Contract</button>
+  </div>
+</div>
+
+<!-- PAGE: ADMIN LOGIN -->
+<div class="page" id="pg-admin-login">
+  <nav>
+    <div class="logo"><div class="logo-ring"></div> GreenChain</div>
+    <div class="nav-info"><div class="chip">Admin Portal</div></div>
+  </nav>
+  <div class="center-wrap">
+    <div class="card animate">
+      <div class="tag">🔐 Admin Access</div>
+      <h2 class="card-title">Admin Login</h2>
+      <p class="card-sub">Authorized personnel only. All access is logged on the blockchain.</p>
+      <div id="admin-alert" class="alert alert-error"></div>
+      <div class="form-group"><label>Username</label><input type="text" id="admin-user" placeholder="admin"/></div>
+      <div class="form-group"><label>Password</label><input type="password" id="admin-pass" placeholder="••••••••"/></div>
+      <button class="btn btn-primary" onclick="doAdminLogin()">Access Admin Panel →</button>
+      <div class="link-text"><a onclick="goTo('pg-login')">← Back to User Login</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: ADMIN DASHBOARD -->
+<div class="page" id="pg-admin">
+  <nav>
+    <div class="logo"><div class="logo-ring"></div> GreenChain <span style="font-size:12px;color:var(--amber);margin-left:8px;font-weight:600">ADMIN</span></div>
+    <div class="nav-info">
+      <div class="chip">Admin: <span class="hl">superadmin</span></div>
+      <button class="btn-ghost" onclick="doLogout()">Logout</button>
+    </div>
+  </nav>
+  <div class="admin-body">
+    <div class="animate">
+      <div style="margin-bottom:1.5rem">
+        <div class="bc-badge"><div class="bc-dot"></div> Live Blockchain Data</div>
+        <h2 style="font-size:1.5rem;font-weight:800">Admin Dashboard</h2>
+        <p style="font-size:13px;color:var(--text3)">Monitor all users, transactions, and platform activity</p>
+      </div>
+      <div class="admin-stats">
+        <div class="a-stat"><div class="a-stat-label">Total Users</div><div class="a-stat-val c" id="total-users">10</div></div>
+        <div class="a-stat"><div class="a-stat-label">Active Sellers</div><div class="a-stat-val g" id="total-sellers">6</div></div>
+        <div class="a-stat"><div class="a-stat-label">Active Buyers</div><div class="a-stat-val a" id="total-buyers">4</div></div>
+        <div class="a-stat"><div class="a-stat-label">Transactions</div><div class="a-stat-val r" id="total-tx">28</div></div>
+      </div>
+      <div class="admin-tabs">
+        <button class="a-tab active" onclick="switchTab('sellers',event)">⚡ Sellers</button>
+        <button class="a-tab" onclick="switchTab('buyers',event)">🛒 Buyers</button>
+        <button class="a-tab" onclick="switchTab('transactions',event)">📋 Transactions</button>
+        <button class="a-tab" onclick="switchTab('registered',event)">👥 Registered Users</button>
+      </div>
+      <div class="a-section active" id="tab-sellers">
+        <div class="table-wrap">
+          <div class="table-header"><div class="table-title">All Sellers</div><input class="table-search" placeholder="Search..." oninput="searchTable(this,'sellers-tbody')"/></div>
+          <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Location</th><th>Source</th><th>Available (kWh)</th><th>Price/kWh</th><th>Status</th></tr></thead><tbody id="sellers-tbody"></tbody></table></div>
+        </div>
+      </div>
+      <div class="a-section" id="tab-buyers">
+        <div class="table-wrap">
+          <div class="table-header"><div class="table-title">All Buyers</div><input class="table-search" placeholder="Search..." oninput="searchTable(this,'buyers-tbody')"/></div>
+          <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Location</th><th>Purchased (kWh)</th><th>Total Spent</th><th>Last Purchase</th><th>Status</th></tr></thead>
+          <tbody id="buyers-tbody">
+            <tr><td>Ram Shankar</td><td>T. Nagar, Chennai</td><td>45.0</td><td style="color:var(--amber)">₹369.00</td><td>2 hrs ago</td><td><span class="status-dot"><span class="dot dot-green"></span>Active</span></td></tr>
+            <tr><td>Deepa Krishnan</td><td>Anna Nagar, TN</td><td>22.5</td><td style="color:var(--amber)">₹184.50</td><td>Yesterday</td><td><span class="status-dot"><span class="dot dot-green"></span>Active</span></td></tr>
+            <tr><td>Karthik Babu</td><td>Guindy, Chennai</td><td>67.8</td><td style="color:var(--amber)">₹556.36</td><td>3 days ago</td><td><span class="status-dot"><span class="dot dot-amber"></span>Pending</span></td></tr>
+            <tr><td>Anjali Menon</td><td>Sholinganallur, TN</td><td>12.0</td><td style="color:var(--amber)">₹98.40</td><td>1 week ago</td><td><span class="status-dot"><span class="dot dot-green"></span>Active</span></td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+      <div class="a-section" id="tab-transactions">
+        <div class="table-wrap">
+          <div class="table-header"><div class="table-title">All Transactions</div><input class="table-search" placeholder="Search..." oninput="searchTable(this,'tx-tbody')"/></div>
+          <div style="overflow-x:auto"><table><thead><tr><th>Tx Hash</th><th>Seller</th><th>Buyer</th><th>kWh</th><th>Amount</th><th>Time</th><th>Status</th></tr></thead><tbody id="tx-tbody"></tbody></table></div>
+        </div>
+      </div>
+      <div class="a-section" id="tab-registered">
+        <div class="table-wrap">
+          <div class="table-header"><div class="table-title">All Registered Users</div><input class="table-search" placeholder="Search..." oninput="searchTable(this,'users-tbody')"/></div>
+          <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Location</th><th>Role</th><th>Joined</th></tr></thead><tbody id="users-tbody"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // Replace this with your actual deployed contract address from Remix
+const contractAddress = "0xd9145CCE52D386f254917e481eB44e9943F39138";
+
+const contractABI = [
+  "function listEnergy(uint256 _kwh, uint256 _pricePerKwhWei) public",
+  "function buyEnergy(uint256 _id, uint256 _kwhToBuy) public payable"
+];
+
+// Helper to connect MetaMask and get a signer
+async function getBlockchainSigner() {
+  if (!window.ethereum) {
+    showToast("Please install MetaMask to trade on the blockchain.", "error");
+    return null;
+  }
+  await window.ethereum.request({ method: 'eth_requestAccounts' });
+  const provider = new ethers.providers.Web3Provider(window.ethereum);
+  return provider.getSigner();
+}
+/* ================================================================
+   SHARED STATE — single source of truth
+   Both sell page and buy page read/write from sellers[].
+   When seller lists energy → sellers[] updates → buyer sees it.
+================================================================ */
+let users = [];
+let currentUser = null;
+let chosenRole  = 'sell';
+let currentListing = null;  // active listing of logged-in seller
+let newListingId   = null;  // id of the newly listed entry (to highlight)
+let selectedSeller = null;
+
+// Baseline sellers
+let sellers = [
+  {id:1, name:"Priya Sharma",  loc:"Tambaram, TN",  dist:"2.3 km", source:"solar", available:15.4, price:8.20, rating:4.7, reviews:28, ownerEmail:null},
+  {id:2, name:"Ravi Mohan",    loc:"Velachery, TN", dist:"3.1 km", source:"solar", available:42.0, price:7.90, rating:4.8, reviews:55, ownerEmail:null},
+  {id:3, name:"Sunita Reddy",  loc:"OMR, Chennai",  dist:"4.5 km", source:"solar", available:8.2,  price:8.60, rating:4.6, reviews:19, ownerEmail:null},
+  {id:4, name:"Vikram Nair",   loc:"Porur, TN",     dist:"5.2 km", source:"solar", available:30.1, price:8.10, rating:4.9, reviews:63, ownerEmail:null},
+  {id:5, name:"Meena Pillai",  loc:"Adyar, TN",     dist:"6.0 km", source:"solar", available:0,    price:7.80, rating:5.0, reviews:77, ownerEmail:null},
+];
+
+/* ================================================================
+   MARKETPLACE SYNC — persists sellers/users/transactions to
+   localStorage so that a listing made in one browser tab/login
+   (seller) is immediately visible in another tab/login
+   (buyer dashboard or admin dashboard), even after refresh.
+================================================================ */
+const MARKET_KEY='greenchain_market_state_v1';
+function saveState(){
+  try{ localStorage.setItem(MARKET_KEY, JSON.stringify({sellers,allTx,users,sellerStats})); }catch(e){}
+}
+function loadState(){
+  try{
+    const raw=localStorage.getItem(MARKET_KEY);
+    if(raw){
+      const s=JSON.parse(raw);
+      if(s.sellers) sellers=s.sellers;
+      if(s.allTx) allTx=s.allTx;
+      if(s.users) users=s.users;
+      if(s.sellerStats) sellerStats=s.sellerStats;
+    }
+  }catch(e){}
+}
+
+let allTx = [
+  {hash:"0x8f3a...1c2d", seller:"Priya Sharma", buyer:"Ram Shankar",    kwh:8.5,  amt:71.40,  time:"2 hrs ago",  status:"Confirmed"},
+  {hash:"0x2e9b...4f7a", seller:"Ravi Mohan",   buyer:"Deepa Krishnan", kwh:12.0, amt:98.40,  time:"5 hrs ago",  status:"Confirmed"},
+  {hash:"0x7d1c...9e3f", seller:"Ravi Mohan",   buyer:"Karthik Babu",   kwh:25.0, amt:197.50, time:"Yesterday",  status:"Pending"},
+  {hash:"0x5b4e...2a1c", seller:"Vikram Nair",  buyer:"Anjali Menon",   kwh:12.0, amt:97.20,  time:"2 days ago", status:"Confirmed"},
+  {hash:"0x3c6f...8b5d", seller:"Meena Pillai", buyer:"Ram Shankar",    kwh:30.0, amt:234.00, time:"3 days ago", status:"Confirmed"},
+];
+
+let sellerStats = { soldKwh:48.2, earnings:404.88, balance:842.50 };
+loadState();
+
+/* Live sync: when another tab/login updates the marketplace
+   (e.g. a seller lists/cancels, or a buyer purchases), refresh
+   this tab's view immediately. */
+window.addEventListener('storage', function(e){
+  if(e.key!==MARKET_KEY) return;
+  loadState();
+  if(document.getElementById('pg-buy').classList.contains('active')) filterSellers();
+  if(document.getElementById('pg-admin').classList.contains('active')){
+    updateAdminSellersTable(); updateAdminTxTable(); updateAdminUsersTable();
+  }
+});
+
+/* ---- HELPERS ---- */
+function v(id){ return document.getElementById(id).value.trim(); }
+function rand(n){ return Math.random().toString(16).substr(2,n); }
+function showAlert(el,msg){ el.textContent=msg; el.className='alert alert-error show'; }
+function goTo(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show '+type;
+  setTimeout(()=>t.className='toast',3500);
+}
+
+/* ---- REGISTER ---- */
+async function doRegister(){
+  const fname=v('reg-fname'),lname=v('reg-lname'),email=v('reg-email');
+  const phone=v('reg-phone'),loc=v('reg-location'),pass=v('reg-pass'),pass2=v('reg-pass2');
+  const al=document.getElementById('reg-alert');
+  if(al) al.className='alert';
+  if(!fname||!lname||!email||!phone||!loc||!pass) return showAlert(al,'Please fill in all fields.');
+  if(pass!==pass2) return showAlert(al,'Passwords do not match.');
+
+  try {
+    const res = await fetch('http://localhost:5000/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fname, lname, email, phone, loc, pass })
+    });
+    const data = await res.json();
+    if(!res.ok) return showAlert(al, data.error || 'Registration failed.');
+
+    ['reg-fname','reg-lname','reg-email','reg-phone','reg-location','reg-pass','reg-pass2'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.value='';
+    });
+    showToast('Account created! Please sign in.','success');
+    goTo('pg-login');
+  } catch(err) {
+    showAlert(al,'Unable to connect to backend server. Is server.js running?');
+  }
+}
+
+/* ---- LOGIN ---- */
+async function doLogin(){
+  const email=v('login-email'),pass=v('login-pass');
+  const al=document.getElementById('login-alert');
+  if(!email||!pass) return showAlert(al,'Please enter your credentials.');
+  if(al) al.className='alert';
+
+  try {
+    const res = await fetch('http://localhost:5000/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, pass })
+    });
+    const data = await res.json();
+    if(!res.ok) return showAlert(al, data.error || 'Invalid credentials.');
+
+    currentUser = data; // Receives the user object from MySQL
+    ['wallet-addr','sell-wallet','buy-wallet'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.textContent = currentUser.wallet || '0x3f2...a9c1';
+    });
+    currentListing=null; newListingId=null;
+    updateListingUI();
+    showToast('Welcome, '+currentUser.fname+'!','success');
+    goTo('pg-role');
+  } catch(err) {
+    showAlert(al,'Unable to connect to backend server.');
+  }
+}
+
+/* ---- ROLE ---- */
+function selectRole(r){
+  chosenRole=r;
+  document.getElementById('role-sell').classList.toggle('selected',r==='sell');
+  document.getElementById('role-buy').classList.toggle('selected',r==='buy');
+}
+selectRole('sell');
+
+function goToTrade(){
+  if(chosenRole==='sell'){ updateSellStatsUI(); goTo('pg-sell'); }
+  else { loadState(); renderSellers(); goTo('pg-buy'); }
+}
+
+/* ---- SELL SLIDER ---- */
+function updateSlider(){
+  const kwh=parseFloat(document.getElementById('kwh-slider').value)||0;
+  const price=parseFloat(document.getElementById('custom-price').value)||8.40;
+  document.getElementById('kwh-val').textContent=kwh.toFixed(1);
+  document.getElementById('price-est').textContent='₹'+(kwh*price).toFixed(2);
+}
+
+/* ================================================================
+   CORE FIX: doSell()
+   Upserts the logged-in seller into the shared sellers[] array.
+   The buyer page always renders from sellers[], so it immediately
+   reflects the new listing with the correct name, location, kWh,
+   price, and source.
+================================================================ */
+async function doSell() {
+  const kwh = parseFloat(document.getElementById('kwh-slider').value);
+  const source = document.getElementById('energy-source').value;
+  const price = parseFloat(document.getElementById('custom-price').value) || 8.40;
+  
+  if (!currentUser) { showToast('Please log in first.', 'error'); return; }
+  if (!kwh || kwh <= 0) { showToast('Select a valid kWh amount.', 'error'); return; }
+
+  try {
+    showToast('Opening MetaMask to list energy...', 'success');
+    const signer = await getBlockchainSigner();
+    if (!signer) return;
+
+    const contract = new ethers.Contract(contractAddress, contractABI, signer);
+    
+    // Convert price to Wei for the smart contract (using parseUnits as a safe multiplier)
+    const priceInWei = ethers.utils.parseUnits((price * 1000).toString(), "wei");
+
+    // Send transaction to the smart contract
+    const tx = await contract.listEnergy(Math.floor(kwh), priceInWei);
+    showToast('Transaction submitted. Waiting for confirmation...', 'success');
+    
+    await tx.wait(); // Wait for blockchain block confirmation
+    showToast('⚡ ' + kwh.toFixed(1) + ' kWh successfully listed on the blockchain!', 'success');
+    
+    // Update local UI states as before
+    currentListing = { kwh, source, price, name: currentUser.fname + ' ' + currentUser.lname, loc: currentUser.loc };
+    updateListingUI();
+  } catch (err) {
+    console.error(err);
+    showToast('Blockchain transaction rejected or failed.', 'error');
+  }
+}
+
+async function fetchListingsFromDB(){
+  try {
+    const res = await fetch('http://localhost:5000/api/listings');
+    const data = await res.json();
+    if(data && Array.isArray(data)){
+      // Maps your MySQL rows to the frontend seller format
+      sellers = data.map(item => ({
+        id: item.id,
+        name: item.name || 'Producer',
+        loc: item.loc || 'Chennai, TN',
+        dist: '2.0 km',
+        source: item.source,
+        available: parseFloat(item.kwh),
+        price: parseFloat(item.price || item.price_per_kwh),
+        rating: 4.8,
+        reviews: 12,
+        isUser: false
+      }));
+    }
+    renderSellers();
+  } catch(err) {
+    console.error('Error fetching listings:', err);
+    renderSellers();
+  }
+}
+
+function cancelListing(){
+  sellers=sellers.filter(s=>!(currentUser && s.ownerEmail===currentUser.email));
+  currentListing=null; newListingId=null;
+  updateListingUI();
+  updateSellStatsUI();
+  updateAdminSellersTable();
+  showToast('Listing cancelled and removed from marketplace.','success');
+  saveState();
+}
+
+function updateListingUI(){
+  const statusEl=document.getElementById('live-listing-status');
+  const formEl  =document.getElementById('sell-form-area');
+  const infoEl  =document.getElementById('live-listing-info');
+  if(currentListing){
+    const srcLabel={solar:'☀️ Solar Panel',wind:'💨 Wind Turbine',mixed:'🌿 Mixed Renewable'}[currentListing.source]||currentListing.source;
+    infoEl.innerHTML=
+      '<strong>'+currentListing.kwh.toFixed(1)+' kWh</strong> of '+srcLabel+' listed<br>'+
+      'Price: <strong style="color:var(--cyan)">₹'+currentListing.price.toFixed(2)+'/kWh</strong><br>'+
+      'Location: <strong>'+currentListing.loc+'</strong><br>'+
+      'Est. earnings: <strong style="color:var(--green)">₹'+(currentListing.kwh*currentListing.price).toFixed(2)+'</strong>';
+    statusEl.classList.add('active');
+    formEl.style.opacity='.4';
+    formEl.style.pointerEvents='none';
+  } else {
+    statusEl.classList.remove('active');
+    formEl.style.opacity='1';
+    formEl.style.pointerEvents='auto';
+  }
+}
+
+function updateSellStatsUI(){
+  document.getElementById('balance-display').textContent='₹'+sellerStats.balance.toFixed(2);
+  document.getElementById('stat-sold-kwh').textContent=sellerStats.soldKwh.toFixed(1);
+  document.getElementById('stat-sold-amt').textContent='kWh · ₹'+sellerStats.earnings.toFixed(2)+' earned';
+  // Remaining Energy = whatever is still listed/unsold for the logged-in seller
+  const remaining = currentListing ? currentListing.kwh : 0;
+  document.getElementById('stat-remaining-kwh').textContent=remaining.toFixed(1);
+}
+
+/* ================================================================
+   BUY PAGE: always reads from shared sellers[]
+   New listings (isUser:true) are highlighted with a green glow
+   and a "NEW" badge, and a banner at the top shows the details.
+================================================================ */
+function srcBadge(source){
+  return {
+    solar:{cls:'badge-solar',label:'☀️ Solar'},
+    wind: {cls:'badge-wind', label:'💨 Wind'},
+    mixed:{cls:'badge-mixed',label:'🌿 Mixed'},
+  }[source]||{cls:'badge-mixed',label:source};
+}
+
+function renderSellers(list){
+  const data=list||sellers;
+  const grid=document.getElementById('seller-grid');
+  document.getElementById('seller-count').textContent='Showing '+data.length+' seller'+(data.length!==1?'s':'')+' near your area';
+
+  if(!data.length){
+    grid.innerHTML='<div style="color:var(--text3);font-size:14px;padding:1rem 0;grid-column:1/-1">No sellers match your search.</div>';
+    updateBuyerBanner([]);
+    return;
+  }
+
+  updateBuyerBanner(data);
+
+  grid.innerHTML=data.map(s=>{
+    const {cls,label}=srcBadge(s.source);
+    const isNew=s.id===newListingId;
+    const soldOut=s.available<=0;
+    return '<div class="seller-card '+(s.available>0?'online ':'')+(isNew?'new-listing ':'')+'" onclick="openBuyModal('+s.id+')">'+
+      '<div class="seller-header">'+
+        '<div class="avatar">'+s.name.split(' ').map(n=>n[0]).join('')+'</div>'+
+        '<div>'+
+          '<div class="seller-name">'+s.name+(isNew?' <span class="badge badge-new" style="font-size:9px;padding:1px 6px">NEW</span>':'')+'</div>'+
+          '<div class="seller-loc">📍 '+s.loc+' · '+s.dist+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="seller-stats">'+
+        '<div class="s-stat"><div class="s-stat-label">Available</div><div class="s-stat-val">'+s.available.toFixed(1)+' kWh</div></div>'+
+        '<div class="s-stat"><div class="s-stat-label">Price</div><div class="s-stat-val">₹'+s.price.toFixed(2)+'/kWh</div></div>'+
+        '<div class="s-stat"><div class="s-stat-label">Rating</div><div class="s-stat-val">⭐ '+s.rating.toFixed(1)+'</div></div>'+
+        '<div class="s-stat"><div class="s-stat-label">Reviews</div><div class="s-stat-val">'+s.reviews+'</div></div>'+
+      '</div>'+
+      '<span class="badge '+cls+'" style="margin-top:.6rem">'+label+'</span>'+
+      (soldOut?'<span class="badge badge-soldout" style="margin-top:.6rem">Sold Out</span>':'')+
+    '</div>';
+  }).join('');
+}
+
+function updateBuyerBanner(data){
+  const notif  =document.getElementById('buyer-notif');
+  const notifTxt=document.getElementById('buyer-notif-text');
+  const newEntry=data.find(s=>s.id===newListingId);
+  if(newEntry){
+    notifTxt.textContent='🆕 '+newEntry.name+' just listed '+newEntry.available.toFixed(1)+' kWh from '+newEntry.loc+' at ₹'+newEntry.price.toFixed(2)+'/kWh — tap to buy!';
+    notif.classList.add('show');
+  } else {
+    notif.classList.remove('show');
+  }
+}
+
+function filterSellers(){
+  const q=document.getElementById('seller-search').value.toLowerCase();
+  const f=document.getElementById('seller-filter').value;
+  renderSellers(sellers.filter(s=>{
+    return (s.name.toLowerCase().includes(q)||s.loc.toLowerCase().includes(q))&&(!f||s.source===f);
+  }));
+}
+
+/* ---- BUY MODAL ---- */
+function openBuyModal(id){
+  selectedSeller=sellers.find(s=>s.id===id);
+  if(!selectedSeller){ showToast('Seller not found.','error'); return; }
+  if(selectedSeller.available<=0){ showToast('This seller is sold out.','error'); return; }
+  const info=document.getElementById('modal-seller-info');
+  info.innerHTML=
+    '<div class="avatar" style="width:46px;height:46px;font-size:18px">'+selectedSeller.name.split(' ').map(n=>n[0]).join('')+'</div>'+
+    '<div>'+
+      '<div style="font-weight:700">'+selectedSeller.name+'</div>'+
+      '<div style="font-size:12px;color:var(--text3)">📍 '+selectedSeller.loc+' · '+selectedSeller.dist+'</div>'+
+      '<div style="font-size:12px;color:var(--green);margin-top:2px">Available: '+selectedSeller.available.toFixed(1)+' kWh · ₹'+selectedSeller.price.toFixed(2)+'/kWh</div>'+
+    '</div>';
+  document.getElementById('modal-price').textContent='₹'+selectedSeller.price.toFixed(2);
+  document.getElementById('buy-kwh').value='';
+  document.getElementById('modal-fee').textContent='₹0.00';
+  document.getElementById('modal-total').textContent='₹0.00';
+  document.getElementById('buy-modal').classList.add('active');
+}
+
+function closeModal(){ document.getElementById('buy-modal').classList.remove('active'); }
+
+function updateBuyPrice(){
+  if(!selectedSeller) return;
+  const kwh=parseFloat(document.getElementById('buy-kwh').value)||0;
+  const base=kwh*selectedSeller.price;
+  document.getElementById('modal-fee').textContent='₹'+(base*0.02).toFixed(2);
+  document.getElementById('modal-total').textContent='₹'+(base*1.02).toFixed(2);
+}
+
+/* ================================================================
+   doBuy(): deducts from shared sellers[], updates sell dashboard
+   if seller is the current user, logs transaction everywhere.
+================================================================ */
+async function doBuy() {
+  const kwh = parseFloat(document.getElementById('buy-kwh').value);
+  if (!kwh || kwh <= 0) { showToast('Enter a valid amount.', 'error'); return; }
+  if (kwh > selectedSeller.available) { showToast('Exceeds available kWh.', 'error'); return; }
+
+  try {
+    showToast('Opening MetaMask to process payment...', 'success');
+    const signer = await getBlockchainSigner();
+    if (!signer) return;
+
+    const contract = new ethers.Contract(contractAddress, contractABI, signer);
+
+    // Calculate total cost in Wei (matching what you tested in Remix)
+    const totalCostWei = ethers.utils.parseUnits((kwh * selectedSeller.price * 1000).toString(), "wei");
+
+    // Execute buyEnergy on the smart contract, attaching the crypto value
+    const tx = await contract.buyEnergy(selectedSeller.id, Math.floor(kwh), { value: totalCostWei });
+    showToast('Processing purchase on blockchain...', 'success');
+
+    await tx.wait();
+    showToast('Purchase confirmed via smart contract! Funds transferred securely.', 'success');
+    
+    closeModal();
+    renderSellers();
+  } catch (err) {
+    console.error(err);
+    showToast('Purchase transaction failed.', 'error');
+  }
+}
+
+/* ---- ADMIN ---- */
+function doAdminLogin(){
+  const user=v('admin-user'),pass=v('admin-pass');
+  const al=document.getElementById('admin-alert');
+  if(user==='admin'&&pass==='admin123'){
+    al.className='alert';
+    loadState();
+    document.getElementById('total-users').textContent=users.length+10;
+    updateAdminSellersTable();
+    updateAdminTxTable();
+    updateAdminUsersTable();
+    goTo('pg-admin');
+  } else {
+    showAlert(al,'Invalid credentials. Try: admin / admin123');
+  }
+}
+
+function updateAdminSellersTable(){
+  const tbody=document.getElementById('sellers-tbody');
+  const srcLabel={solar:'☀️ Solar',wind:'💨 Wind',mixed:'🌿 Mixed'};
+  tbody.innerHTML=sellers.map(s=>{
+    const status=s.available>0
+      ?'<span class="status-dot"><span class="dot dot-green"></span>Active</span>'
+      :'<span class="status-dot"><span class="dot dot-red"></span>Sold Out</span>';
+    return '<tr>'+
+      '<td>'+s.name+(s.id===newListingId?' <span class="badge badge-new" style="font-size:9px">NEW</span>':'')+'</td>'+
+      '<td>'+s.loc+'</td>'+
+      '<td>'+(srcLabel[s.source]||s.source)+'</td>'+
+      '<td style="color:var(--green)">'+s.available.toFixed(1)+'</td>'+
+      '<td>₹'+s.price.toFixed(2)+'</td>'+
+      '<td>'+status+'</td>'+
+    '</tr>';
+  }).join('');
+  document.getElementById('total-sellers').textContent=sellers.filter(s=>s.available>0).length;
+}
+
+function updateAdminTxTable(){
+  const tbody=document.getElementById('tx-tbody');
+  tbody.innerHTML=allTx.map(tx=>{
+    const sc=tx.status==='Confirmed'?'dot-green':tx.status==='Listed'?'dot-amber':'dot-amber';
+    return '<tr>'+
+      '<td style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--cyan)">'+tx.hash+'</td>'+
+      '<td>'+tx.seller+'</td><td>'+tx.buyer+'</td>'+
+      '<td>'+tx.kwh.toFixed(1)+'</td>'+
+      '<td style="color:var(--green)">'+(tx.amt>0?'₹'+tx.amt.toFixed(2):'—')+'</td>'+
+      '<td>'+tx.time+'</td>'+
+      '<td><span class="status-dot"><span class="dot '+sc+'"></span>'+tx.status+'</span></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function updateAdminUsersTable(){
+  document.getElementById('users-tbody').innerHTML=users.map(u=>
+    '<tr><td>'+u.fname+' '+u.lname+'</td><td>'+u.email+'</td><td>'+u.phone+'</td><td>'+u.loc+'</td><td><span class="badge badge-solar">User</span></td><td>'+u.joined+'</td></tr>'
+  ).join('');
+}
+
+function switchTab(tab,ev){
+  document.querySelectorAll('.a-section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.a-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(ev&&ev.target) ev.target.classList.add('active');
+}
+
+function searchTable(input,tbodyId){
+  const q=input.value.toLowerCase();
+  document.querySelectorAll('#'+tbodyId+' tr').forEach(row=>{
+    row.style.display=row.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+
+function doLogout(){
+  currentUser=null; chosenRole='sell'; currentListing=null; newListingId=null;
+  goTo('pg-login');
+  showToast('Logged out successfully.','success');
+}
+
+// Init
+fetchListingsFromDB();
+updateAdminSellersTable();
+updateAdminTxTable();
+</script>
+</body>
+</html>
